@@ -36,10 +36,10 @@ const App = () => {
           </div>
 
           {/* Bottom Controls */}
-          <div className="absolute bottom-6 md:bottom-8 left-0 right-0 flex justify-center z-20 px-4 pointer-events-none">
-            <div className="pointer-events-auto">
+          <div className="absolute bottom-6 md:bottom-8 left-0 right-0 flex justify-center z-20 px-4 pointer-events-auto">
+            <div>
               <ControlsPanel />
-            </div>
+            </div>  
           </div>
         </main>
 

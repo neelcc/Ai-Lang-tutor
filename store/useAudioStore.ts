@@ -1,11 +1,11 @@
-import { LiveManager } from "@/services/LiveManager";
 import { ConnectionState } from "@/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import { LiveAudioManager } from "@/services/LiveAudioManager";
 
 type AudioStore = {
   connect: () => Promise<void>;
-  LiveManagerInstance: LiveManager | null;
+  LiveManagerInstance: LiveAudioManager | null;
   connectionState: ConnectionState;
   error: string | null;
 };
@@ -49,7 +49,7 @@ export const useAudioStore = create<AudioStore>()(
           let manager = state.LiveManagerInstance;
 
           if (!manager) {
-            manager = new LiveManager();
+            manager = new LiveAudioManager();
 
             set({
               LiveManagerInstance: manager,
