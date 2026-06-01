@@ -1,7 +1,21 @@
-export const MODEL = "gemini-2.5-flash-native-audio-preview-09-2025";
+import { EndSensitivity, LiveConnectConfig, Modality, StartSensitivity } from "@google/genai";
+
+export const MODEL = "gemini-3.1-flash-live-preview";
 export const INPUT_SAMPLE_RATE = 16000;
 export const OUTPUT_SAMPLE_RATE = 24000;
 
+export const config : LiveConnectConfig = {
+        responseModalities: [Modality.AUDIO],
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            disabled: false,
+            startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW, // less trigger-happy
+            endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH, // detect silence faster
+            prefixPaddingMs: 200,
+            silenceDurationMs: 800, // declare end after 800ms of "silence"
+          },
+        },
+      }
 
 export const AVAILABLE_TOPICS = [
   "Free Chat",
