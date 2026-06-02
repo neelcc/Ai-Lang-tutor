@@ -27,6 +27,7 @@ export interface LiveManagerCallbacks {
   ) => void;
   onAudioLevel: (level: number, type: "input" | "output") => void;
   onError: (error: string) => void;
+  
 }
 
 export interface ConnectConfig {

@@ -13,7 +13,7 @@ export function createPCMBlob(data: Float32Array) {
       element < 0 ? element * 32768 : element * 32767;
   }
 
-  
+
   return {
     data: arrayBufferToBase64(int16),
     mimeType: "audio/pcm;rate=16000",
@@ -23,31 +23,32 @@ export function createPCMBlob(data: Float32Array) {
 function arrayBufferToBase64(data: Int16Array) {
   const bytes = new Uint8Array(data.buffer);
 
-  
+
 
   let str = "";
   for (let i = 0; i < bytes.byteLength; i++) {
     str += String.fromCharCode(bytes[i]);
   }
 
-  
+
   return btoa(str);
 }
-
-
 
 export function base64ToUint8Array(
   base64: string,
 ): Uint8Array {
+
   const binaryString = atob(base64);
   const len = binaryString.length;
   const bytes = new Uint8Array(len);
+
   for (let i = 0; i < len; i++) {
+
     bytes[i] = binaryString.charCodeAt(i);
   }
+
   return bytes;
 }
-
 
 export async function decodeAudioData(
   data: Uint8Array,
@@ -55,6 +56,7 @@ export async function decodeAudioData(
   sampleRate: number,
   numChannels: number,
 ): Promise<AudioBuffer> {
+
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
   const buffer = ctx.createBuffer(
@@ -70,6 +72,10 @@ export async function decodeAudioData(
         dataInt16[i * numChannels + channel] / 32768.0;
     }
   }
+
   return buffer;
 }
+
+
+
 

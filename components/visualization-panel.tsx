@@ -21,7 +21,7 @@ function VisualizationPanel() {
         {/* The Orb Background */}
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           <Orb
-            colors={["#FFD439", "#FFD439"]}
+            colors={["#2982B9", "#08D4EF"]}
             agentState={isConnected ? agentState : "thinking"}
             volumeMode="manual"
             manualInput={isConnected ? 1 : 0}

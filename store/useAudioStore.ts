@@ -8,6 +8,8 @@ type AudioStore = {
   LiveManagerInstance: LiveAudioManager | null;
   connectionState: ConnectionState;
   error: string | null;
+  isMuted : boolean;
+  ToggleMute : () => void;
 };
 
 export const useAudioStore = create<AudioStore>()(
@@ -16,6 +18,13 @@ export const useAudioStore = create<AudioStore>()(
       LiveManagerInstance: null,
       connectionState: ConnectionState.DISCONNECTED,
       error: null,
+      isMuted : false,
+      ToggleMute : () => {
+        const state = get();
+        const newState = !state.isMuted
+        set({isMuted : newState})
+          state.LiveManagerInstance?.SetMute(newState)
+      },
 
       connect: async () => {
         const state = get();
@@ -29,7 +38,6 @@ export const useAudioStore = create<AudioStore>()(
 
         set({
           error: null,
-          connectionState: ConnectionState.CONNECTING,
         });
 
         try {
@@ -39,7 +47,6 @@ export const useAudioStore = create<AudioStore>()(
         } catch {
           set({
             error: "Microphone Permission Denied.",
-            connectionState: ConnectionState.DISCONNECTED,
           });
 
           return;
@@ -47,9 +54,12 @@ export const useAudioStore = create<AudioStore>()(
 
         try {
           let manager = state.LiveManagerInstance;
-
           if (!manager) {
-            manager = new LiveAudioManager();
+            // @ts-ignore
+            manager = new LiveAudioManager({
+              onStateChange : (state) => set({ connectionState : state }), 
+              onError : (err) => set({ error : err }),
+            });
 
             set({
               LiveManagerInstance: manager,
@@ -58,15 +68,12 @@ export const useAudioStore = create<AudioStore>()(
 
            manager.StartSession();
 
-          set({
-            connectionState: ConnectionState.CONNECTED,
-          });
+          
         } catch (error) {
           console.error(error);
 
           set({
             error: "Failed to connect.",
-            connectionState: ConnectionState.DISCONNECTED,
           });
         }
       },

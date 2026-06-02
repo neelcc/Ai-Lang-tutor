@@ -1,8 +1,8 @@
 import { base64ToUint8Array, createPCMBlob, decodeAudioData } from "@/lib/audioUtils";
 import { config, INPUT_SAMPLE_RATE, MODEL, OUTPUT_SAMPLE_RATE } from "@/lib/constants";
+import { ConnectionState, LiveManagerCallbacks } from "@/types";
 import {
   GoogleGenAI,
-  LiveServerContent,
   LiveServerMessage,
   Session,
 } from "@google/genai";
@@ -18,25 +18,46 @@ export class LiveAudioManager {
   private InputSource: MediaStreamAudioSourceNode | null = null;
   private nextStartTime = 0;
   private sources = new Set<AudioBufferSourceNode>();
+  private callback : LiveManagerCallbacks;
+  private isMuted : boolean = false ;
 
-  constructor() {
+  constructor( callback : LiveManagerCallbacks ) {
     this.ai = new GoogleGenAI({
       apiKey: process.env.NEXT_PUBLIC_API_KEY,
     });
+    this.callback = callback;
+
+  }
+  
+  SetMute(isMutedVar : boolean) {
+
+    this.isMuted = isMutedVar
+
+    if(this.MediaStream){
+      this.MediaStream.getAudioTracks().forEach((tracks)=>{
+        tracks.enabled = !isMutedVar
+      })
+    }
+    
   }
 
   async StartSession() {
 
+    try {
+       this.callback.onStateChange(ConnectionState.CONNECTING)
 
     this.ActiveSession = await this.ai.live.connect({
       model: MODEL,
       callbacks: {
-        onopen: function () {
+        onopen:  () =>  {
           console.log("Opened");
+          this.callback.onStateChange(ConnectionState.CONNECTED)
         },
         onmessage: this.HandleMessage.bind(this),
-        onerror: function (e) {
+        onerror:  (e) => {
           console.debug("Error:", e.message);
+          this.callback.onStateChange(ConnectionState.ERROR)
+          this.callback.onError("Could not connect")
         },
         onclose: function (e) {
           console.log("Close:", e.reason);
@@ -97,13 +118,25 @@ export class LiveAudioManager {
     };
 
     this.InputSource.connect(this.WorkletNode);
+    } catch (error) {
+      console.log(error);
+      this.callback.onError("Something went error.")      
+    }
+   
 
-    // console.log(this.ActiveSession);
   }
 
   async HandleMessage(message: LiveServerMessage) {
 
     const ServerContent = message.serverContent;
+    console.log(ServerContent?.inputTranscription);
+    console.log(ServerContent?.outputTranscription);
+    console.log(ServerContent?.outputTranscription?.finished);
+    
+
+    if(ServerContent?.interrupted){
+      this.StopAllAudio();
+    }
 
     const Base64Data = ServerContent?.modelTurn?.parts?.[0]?.inlineData?.data
 
@@ -130,10 +163,7 @@ export class LiveAudioManager {
     source.connect(this.OutputNode)
 
     source.buffer = AudioBuffer;
-
-    console.log("AudioBuffer ", AudioBuffer);
-    
-
+   
     source.start(this.nextStartTime);
     
     this.nextStartTime += AudioBuffer.duration
@@ -145,4 +175,21 @@ export class LiveAudioManager {
     })
 
   }
+
+  async StopAllAudio(){
+    this.sources.forEach((source)=>{
+      try {
+      source.stop();
+      } catch (error) {
+        console.log("Error ",error);
+      }
+    })
+
+    this.sources.clear();
+
+    if(this.OutputAudioContext) this.nextStartTime = this.OutputAudioContext?.currentTime;
+
+
+  }
+
 }
