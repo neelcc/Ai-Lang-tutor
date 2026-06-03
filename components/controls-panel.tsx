@@ -12,7 +12,7 @@ import { useAudioStore } from "@/store/useAudioStore";
 function ControlsPanel() {
   const { connectionState, ToggleMute, isMuted } = useAudioStore();
   const [selectedDevice, setSelectedDevice] = useState<string>("");
-  const { connect } = useAudioStore()
+  const { connect, disconnect } = useAudioStore()
   const isConnected = connectionState === ConnectionState.CONNECTED;
   const isConnecting =  connectionState === ConnectionState.CONNECTING ;
 
@@ -79,9 +79,7 @@ function ControlsPanel() {
             </Button>
           ) : (
             <Button
-              onClick={()=>{
-                
-              }}
+              onClick={disconnect}
               disabled={isConnecting}
               variant="destructive"
               size="lg"

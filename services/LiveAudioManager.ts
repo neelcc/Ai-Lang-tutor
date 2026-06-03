@@ -18,129 +18,160 @@ export class LiveAudioManager {
   private InputSource: MediaStreamAudioSourceNode | null = null;
   private nextStartTime = 0;
   private sources = new Set<AudioBufferSourceNode>();
-  private callback : LiveManagerCallbacks;
-  private isMuted : boolean = false ;
+  private callbacks: LiveManagerCallbacks;
+  private isMuted: boolean = false;
+  private inputTranscription: string = "";
+  private outputTranscription: string = "";
 
-  constructor( callback : LiveManagerCallbacks ) {
+  constructor(callbacks: LiveManagerCallbacks) {
     this.ai = new GoogleGenAI({
       apiKey: process.env.NEXT_PUBLIC_API_KEY,
     });
-    this.callback = callback;
+    this.callbacks = callbacks;
 
   }
-  
-  SetMute(isMutedVar : boolean) {
+
+  SetMute(isMutedVar: boolean) {
 
     this.isMuted = isMutedVar
 
-    if(this.MediaStream){
-      this.MediaStream.getAudioTracks().forEach((tracks)=>{
+    if (this.MediaStream) {
+      this.MediaStream.getAudioTracks().forEach((tracks) => {
         tracks.enabled = !isMutedVar
       })
     }
-    
+
   }
 
   async StartSession() {
 
     try {
-       this.callback.onStateChange(ConnectionState.CONNECTING)
+      this.callbacks.onStateChange(ConnectionState.CONNECTING)
 
-    this.ActiveSession = await this.ai.live.connect({
-      model: MODEL,
-      callbacks: {
-        onopen:  () =>  {
-          console.log("Opened");
-          this.callback.onStateChange(ConnectionState.CONNECTED)
+      this.ActiveSession = await this.ai.live.connect({
+        model: MODEL,
+        callbacks: {
+          onopen: () => {
+            console.log("Opened");
+            this.callbacks.onStateChange(ConnectionState.CONNECTED)
+          },
+          onmessage: this.HandleMessage.bind(this),
+          onerror: (e) => {
+            console.debug("Error:", e.message);
+            this.callbacks.onStateChange(ConnectionState.ERROR)
+            this.callbacks.onError("Could not connect")
+          },
+          onclose: function (e) {
+            console.log("Close:", e.reason);
+          },
         },
-        onmessage: this.HandleMessage.bind(this),
-        onerror:  (e) => {
-          console.debug("Error:", e.message);
-          this.callback.onStateChange(ConnectionState.ERROR)
-          this.callback.onError("Could not connect")
-        },
-        onclose: function (e) {
-          console.log("Close:", e.reason);
-        },
-      },
-      config: config,
-    });
+        config: config,
+      });
 
-    this.InputAudioContext = new AudioContext({ sampleRate: 16000 });
-    this.OutputAudioContext = new AudioContext({ sampleRate: 24000 });
+      this.InputAudioContext = new AudioContext({ sampleRate: 16000 });
+      this.OutputAudioContext = new AudioContext({ sampleRate: 24000 });
 
-    if (this.InputAudioContext.state === "suspended") {
-      this.InputAudioContext.resume();
-    }
-
-    if (this.OutputAudioContext.state === "suspended") {
-      this.OutputAudioContext.resume();
-    }
-
-    this.OutputNode = this.OutputAudioContext.createGain();
-
-    this.OutputNode.connect(this.OutputAudioContext.destination);
-
-    await this.InputAudioContext.audioWorklet.addModule(
-      "/worklets/mic-processor.js",
-    );
-
-    this.WorkletNode = new AudioWorkletNode(
-      this.InputAudioContext,
-      "mic-processor",
-    );
-
-    this.WorkletNode.connect(this.InputAudioContext.destination);
-
-    this.MediaStream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        sampleRate: INPUT_SAMPLE_RATE,
-        echoCancellation: true,
-        noiseSuppression: true,
-        autoGainControl: true,
-        channelCount: 1,
-      },
-    });
-
-    this.InputSource = this.InputAudioContext.createMediaStreamSource(
-      this.MediaStream,
-    );
-
-    this.WorkletNode.port.onmessage = (event) => {
-      try {
-        const pcmBlob = createPCMBlob(event.data as Float32Array);
-        this.ActiveSession?.sendRealtimeInput({
-          audio: pcmBlob,
-        });
-      } catch (err) {
-        console.error("Send failed:", err);
+      if (this.InputAudioContext.state === "suspended") {
+        this.InputAudioContext.resume();
       }
-    };
 
-    this.InputSource.connect(this.WorkletNode);
+      if (this.OutputAudioContext.state === "suspended") {
+        this.OutputAudioContext.resume();
+      }
+
+      this.OutputNode = this.OutputAudioContext.createGain();
+
+      this.OutputNode.connect(this.OutputAudioContext.destination);
+
+      await this.InputAudioContext.audioWorklet.addModule(
+        "/worklets/mic-processor.js",
+      );
+
+      this.WorkletNode = new AudioWorkletNode(
+        this.InputAudioContext,
+        "mic-processor",
+      );
+
+      this.WorkletNode.connect(this.InputAudioContext.destination);
+
+      this.MediaStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: INPUT_SAMPLE_RATE,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          channelCount: 1,
+        },
+      });
+
+      this.InputSource = this.InputAudioContext.createMediaStreamSource(
+        this.MediaStream,
+      );
+
+      this.WorkletNode.port.onmessage = (event) => {
+        try {
+          const pcmBlob = createPCMBlob(event.data as Float32Array);
+          this.ActiveSession?.sendRealtimeInput({
+            audio: pcmBlob,
+          });
+        } catch (err) {
+          console.error("Send failed:", err);
+        }
+      };
+
+      this.InputSource.connect(this.WorkletNode);
     } catch (error) {
       console.log(error);
-      this.callback.onError("Something went error.")      
+      this.callbacks.onError("Something went error.")
     }
-   
+
 
   }
 
   async HandleMessage(message: LiveServerMessage) {
 
     const ServerContent = message.serverContent;
-    console.log(ServerContent?.inputTranscription);
-    console.log(ServerContent?.outputTranscription);
-    console.log(ServerContent?.outputTranscription?.finished);
-    
 
-    if(ServerContent?.interrupted){
+    if (ServerContent?.interrupted) {
       this.StopAllAudio();
+    }
+
+     if (ServerContent?.inputTranscription?.text) {
+      this.inputTranscription += ServerContent?.inputTranscription?.text;
+      this.callbacks.onTranscript("user", this.inputTranscription, true)
+
+    }
+
+    if (ServerContent?.outputTranscription?.text) {
+      this.outputTranscription += ServerContent?.outputTranscription?.text;
+      this.callbacks.onTranscript("model", this.outputTranscription, true)
+    }
+
+    
+    if (ServerContent?.turnComplete) {
+      if (this.inputTranscription) {
+        this.callbacks.onTranscript(
+          "user",
+          this.inputTranscription,
+          false,
+        );
+
+        this.inputTranscription = "";
+      }
+
+      if (this.outputTranscription) {
+        this.callbacks.onTranscript(
+          "model",
+          this.outputTranscription,
+          false,
+        );
+        this.outputTranscription = "";
+      }
     }
 
     const Base64Data = ServerContent?.modelTurn?.parts?.[0]?.inlineData?.data
 
-    if(!Base64Data) return;
+    if (!Base64Data) return;
 
     await this.PlayAudioChunk(Base64Data as string)
 
@@ -149,47 +180,58 @@ export class LiveAudioManager {
   async PlayAudioChunk(base64Data: string) {
     const Uint8Data = base64ToUint8Array(base64Data)
 
-    if(!this.OutputAudioContext || !this.OutputNode  ) return;
-    
-    const AudioBuffer  = await decodeAudioData(Uint8Data,this.OutputAudioContext,OUTPUT_SAMPLE_RATE,1)
-    
-    if(this.nextStartTime < this.OutputAudioContext.currentTime){
+    if (!this.OutputAudioContext || !this.OutputNode) return;
+
+    const AudioBuffer = await decodeAudioData(Uint8Data, this.OutputAudioContext, OUTPUT_SAMPLE_RATE, 1)
+
+    if (this.nextStartTime < this.OutputAudioContext.currentTime) {
       this.nextStartTime = this.OutputAudioContext.currentTime;
     }
 
-    const source : AudioBufferSourceNode = this.OutputAudioContext.createBufferSource();
+    const source: AudioBufferSourceNode = this.OutputAudioContext.createBufferSource();
 
 
     source.connect(this.OutputNode)
 
     source.buffer = AudioBuffer;
-   
+
     source.start(this.nextStartTime);
-    
+
     this.nextStartTime += AudioBuffer.duration
 
     this.sources.add(source)
 
-    source.addEventListener("ended",()=>{
+    source.addEventListener("ended", () => {
       this.sources.delete(source);
     })
 
   }
 
-  async StopAllAudio(){
-    this.sources.forEach((source)=>{
+  async StopAllAudio() {
+    this.sources.forEach((source) => {
       try {
-      source.stop();
+        source.stop();
       } catch (error) {
-        console.log("Error ",error);
+        console.log("Error ", error);
       }
     })
 
     this.sources.clear();
 
-    if(this.OutputAudioContext) this.nextStartTime = this.OutputAudioContext?.currentTime;
+    if (this.OutputAudioContext) this.nextStartTime = this.OutputAudioContext?.currentTime;
 
 
+  }
+
+  async Disconnect() {
+    await this.StopAllAudio();
+    if(this.ActiveSession){
+      this.ActiveSession.close();
+    }
+    this.InputSource?.disconnect();
+    this.OutputNode?.disconnect();
+    this.InputAudioContext?.close()
+    this.OutputAudioContext?.close()
   }
 
 }

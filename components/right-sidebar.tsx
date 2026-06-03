@@ -13,20 +13,12 @@ import {
 
 import { cleanText } from "@/lib/utils";
 import SidebarHeader from "./sidebar-header";
+import { useAudioStore } from "@/store/useAudioStore";
 
 function RightSidebar() {
-  const items: any[] = [
-    {
-      text: "Hii",
-      isPartial: false,
-      sender: "user",
-    },
-    {
-      text: "I'm TalkGyan AI Assistant",
-      isPartial: false,
-      sender: "assistant",
-    },
-  ];
+
+  const { transcript : items } = useAudioStore();
+  
   return (
     <aside className="flex h-full w-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Header */}

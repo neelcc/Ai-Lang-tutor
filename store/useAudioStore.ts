@@ -1,4 +1,4 @@
-import { ConnectionState } from "@/types";
+import { ConnectionState, TranscriptItem } from "@/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { LiveAudioManager } from "@/services/LiveAudioManager";
@@ -10,6 +10,8 @@ type AudioStore = {
   error: string | null;
   isMuted : boolean;
   ToggleMute : () => void;
+  transcript : TranscriptItem[];
+  disconnect : () => void;
 };
 
 export const useAudioStore = create<AudioStore>()(
@@ -25,6 +27,7 @@ export const useAudioStore = create<AudioStore>()(
         set({isMuted : newState})
           state.LiveManagerInstance?.SetMute(newState)
       },
+      transcript : [],
 
       connect: async () => {
         const state = get();
@@ -59,6 +62,42 @@ export const useAudioStore = create<AudioStore>()(
             manager = new LiveAudioManager({
               onStateChange : (state) => set({ connectionState : state }), 
               onError : (err) => set({ error : err }),
+              onTranscript: (sender, text, isPartial) => {
+              return set((state) => {
+                const newTranscript = [...state.transcript];
+
+                const existingIndex =
+                  newTranscript.findLastIndex((item) => {
+                    return (
+                      item.sender === sender &&
+                      item.isPartial
+                    );
+                  });
+
+                // partial message exists
+                if (existingIndex !== -1) {
+                  newTranscript[existingIndex] = {
+                    ...newTranscript[existingIndex],
+                    text,
+                    isPartial,
+                  };
+
+                  return { transcript: newTranscript };
+                } else {
+                  if (text) {
+                    newTranscript.push({
+                      id: crypto.randomUUID(),
+                      sender,
+                      text,
+                      isPartial,
+                    });
+                  }
+
+                  return { transcript: newTranscript };
+                }
+              });
+            },
+
             });
 
             set({
@@ -77,6 +116,17 @@ export const useAudioStore = create<AudioStore>()(
           });
         }
       },
+
+      disconnect : async () => {
+        const state = get();
+
+        if(state.LiveManagerInstance){
+          state.LiveManagerInstance.Disconnect();
+        }
+        set({LiveManagerInstance : null})
+        set({connectionState : ConnectionState.DISCONNECTED })
+      }
+
     }),
   )
 );
