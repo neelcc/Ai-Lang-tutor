@@ -25,7 +25,7 @@ export interface LiveManagerCallbacks {
     text: string,
     isPartial: boolean
   ) => void;
-  onAudioLevel: (level: number, type: "input" | "output") => void;
+  // onAudioLevel: (level: number, type: "input" | "output") => void;
   onError: (error: string) => void;
   
 }
@@ -38,7 +38,6 @@ export interface ConnectConfig {
   selected_launguage_code: string;
   selected_launguage_region: string;
 
-  context: string;
   selected_proefficent_level: string;
   selected_assistant_voice: string;
 }

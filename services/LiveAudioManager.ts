@@ -1,10 +1,14 @@
 import { base64ToUint8Array, createPCMBlob, decodeAudioData } from "@/lib/audioUtils";
-import { config, INPUT_SAMPLE_RATE, MODEL, OUTPUT_SAMPLE_RATE } from "@/lib/constants";
-import { ConnectionState, LiveManagerCallbacks } from "@/types";
+import {  INPUT_SAMPLE_RATE, MODEL, OUTPUT_SAMPLE_RATE } from "@/lib/constants";
+import { ConnectConfig, ConnectionState, LiveManagerCallbacks } from "@/types";
 import {
+  EndSensitivity,
   GoogleGenAI,
+  LiveConnectConfig,
   LiveServerMessage,
+  Modality,
   Session,
+  StartSensitivity,
 } from "@google/genai";
 
 export class LiveAudioManager {
@@ -43,10 +47,31 @@ export class LiveAudioManager {
 
   }
 
-  async StartSession() {
+  async StartSession(connectConfig : ConnectConfig) {
 
     try {
       this.callbacks.onStateChange(ConnectionState.CONNECTING)
+      const config : LiveConnectConfig = {
+        responseModalities: [Modality.AUDIO], 
+        speechConfig : {
+          languageCode : connectConfig.selected_launguage_code,
+          voiceConfig : {
+            prebuiltVoiceConfig : {
+               voiceName : connectConfig.selected_assistant_voice,
+            }
+          }
+          },
+        systemInstruction : this.generateSystemPrompt(connectConfig), 
+        realtimeInputConfig: {
+          automaticActivityDetection: {
+            disabled: false,
+            startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW, // less trigger-happy
+            endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH, // detect silence faster
+            prefixPaddingMs: 200,
+            silenceDurationMs: 800, // declare end after 800ms of "silence"
+          },
+        },
+      }
 
       this.ActiveSession = await this.ai.live.connect({
         model: MODEL,
@@ -54,8 +79,9 @@ export class LiveAudioManager {
           onopen: () => {
             console.log("Opened");
             this.callbacks.onStateChange(ConnectionState.CONNECTED)
+           
           },
-          onmessage: this.HandleMessage.bind(this),
+          onmessage: this.HandleMessage.bind(this), 
           onerror: (e) => {
             console.debug("Error:", e.message);
             this.callbacks.onStateChange(ConnectionState.ERROR)
@@ -66,7 +92,7 @@ export class LiveAudioManager {
           },
         },
         config: config,
-      });
+      }); 
 
       this.InputAudioContext = new AudioContext({ sampleRate: 16000 });
       this.OutputAudioContext = new AudioContext({ sampleRate: 24000 });
@@ -131,6 +157,9 @@ export class LiveAudioManager {
   async HandleMessage(message: LiveServerMessage) {
 
     const ServerContent = message.serverContent;
+    // console.log("",ServerContent?.inputTranscription);
+    console.log("Output Server",ServerContent);
+    
 
     if (ServerContent?.interrupted) {
       this.StopAllAudio();
@@ -155,16 +184,19 @@ export class LiveAudioManager {
           this.inputTranscription,
           false,
         );
-
+        
+        console.log("IsFInished : ",ServerContent.inputTranscription?.finished);
+        
         this.inputTranscription = "";
       }
-
+      
       if (this.outputTranscription) {
         this.callbacks.onTranscript(
           "model",
           this.outputTranscription,
           false,
         );
+        console.log("IsFInished : ",ServerContent.outputTranscription?.finished);
         this.outputTranscription = "";
       }
     }
@@ -233,5 +265,22 @@ export class LiveAudioManager {
     this.InputAudioContext?.close()
     this.OutputAudioContext?.close()
   }
+
+  generateSystemPrompt(config: ConnectConfig) {
+     return `
+    ROLE: You are an expert language tutor, Your name is "TalkGyan".
+
+    GOAL: Help the user improve their proficiency in ${config.selected_launguage_name} (${config.selected_launguage_region}).
+    TOPIC: ${config.selected_topic}.
+    USER LEVEL: ${config.selected_proefficent_level}.
+
+    INSTRUCTIONS:
+    1.  **Strictly** speak in ${config.selected_launguage_name}. Only use English if the user is completely stuck or asks for a translation.
+    
+    3.  **Conversation Flow**:
+        - Keep responses concise (1-3 sentences).
+        - Ask open-ended questions to keep the user talking.
+    `;
+  } 
 
 }

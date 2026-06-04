@@ -2,16 +2,25 @@ import { ConnectionState, TranscriptItem } from "@/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
 import { LiveAudioManager } from "@/services/LiveAudioManager";
+import { AVAILABLE_LANGUAGES, AVAILABLE_PROFICIENCY_LEVELS, AVAILABLE_TOPICS, AVAILABLE_VOICES } from "@/lib/constants";
 
 type AudioStore = {
   connect: () => Promise<void>;
   LiveManagerInstance: LiveAudioManager | null;
   connectionState: ConnectionState;
   error: string | null;
-  isMuted : boolean;
-  ToggleMute : () => void;
-  transcript : TranscriptItem[];
-  disconnect : () => void;
+  isMuted: boolean;
+  ToggleMute: () => void;
+  transcript: TranscriptItem[];
+  disconnect: () => void;
+   selectedLanguage: string;
+  selectedProficiencyLevel: string;
+  selectedTopic: string;
+  selectedAssistantVoice: string;
+  setSelectedLanguage: (lang: string) => void;
+  setSelectedProficiencyLevel: (prof: string) => void;
+  setSelectedTopic: (topic: string) => void;
+  setSelectedAssistantvoice: (voice: string) => void;
 };
 
 export const useAudioStore = create<AudioStore>()(
@@ -20,14 +29,32 @@ export const useAudioStore = create<AudioStore>()(
       LiveManagerInstance: null,
       connectionState: ConnectionState.DISCONNECTED,
       error: null,
-      isMuted : false,
-      ToggleMute : () => {
+      isMuted: false,
+      ToggleMute: () => {
         const state = get();
         const newState = !state.isMuted
-        set({isMuted : newState})
-          state.LiveManagerInstance?.SetMute(newState)
+        set({ isMuted: newState })
+        state.LiveManagerInstance?.SetMute(newState)
       },
-      transcript : [],
+      transcript: [],
+      selectedLanguage: AVAILABLE_LANGUAGES[0].code,
+    selectedProficiencyLevel:
+      AVAILABLE_PROFICIENCY_LEVELS[0].label,
+    selectedTopic: AVAILABLE_TOPICS[0],
+    selectedAssistantVoice: AVAILABLE_VOICES[0].name,
+
+    setSelectedLanguage: (lang: string) => {
+      set({ selectedLanguage: lang });
+    },
+    setSelectedProficiencyLevel: (prof: string) => {
+      set({ selectedProficiencyLevel: prof });
+    },
+    setSelectedTopic: (topic: string) => {
+      set({ selectedTopic: topic });
+    },
+    setSelectedAssistantvoice: (voice: string) => {
+      set({ selectedAssistantVoice: voice });
+    },
 
       connect: async () => {
         const state = get();
@@ -58,45 +85,50 @@ export const useAudioStore = create<AudioStore>()(
         try {
           let manager = state.LiveManagerInstance;
           if (!manager) {
-            // @ts-ignore
             manager = new LiveAudioManager({
-              onStateChange : (state) => set({ connectionState : state }), 
-              onError : (err) => set({ error : err }),
+              onStateChange: (state) => set({ connectionState: state }),
+              onError: (err) => set({ error: err }),
               onTranscript: (sender, text, isPartial) => {
-              return set((state) => {
-                const newTranscript = [...state.transcript];
+                return set((state) => {
+                  const newTranscript = [...state.transcript];
+                  console.log("NTB ", newTranscript);
 
-                const existingIndex =
-                  newTranscript.findLastIndex((item) => {
-                    return (
-                      item.sender === sender &&
-                      item.isPartial
-                    );
-                  });
+                  const existingIndex =
+                    newTranscript.findLastIndex((item) => {
+                      return (
+                        item.sender === sender &&
+                        item.isPartial
+                      );
+                    });
+                  console.log("ExistingIndex: ", existingIndex);
 
-                // partial message exists
-                if (existingIndex !== -1) {
-                  newTranscript[existingIndex] = {
-                    ...newTranscript[existingIndex],
-                    text,
-                    isPartial,
-                  };
-
-                  return { transcript: newTranscript };
-                } else {
-                  if (text) {
-                    newTranscript.push({
-                      id: crypto.randomUUID(),
-                      sender,
+                  // partial message exists
+                  if (existingIndex !== -1) {
+                    newTranscript[existingIndex] = {
+                      ...newTranscript[existingIndex],
                       text,
                       isPartial,
-                    });
-                  }
+                    };
 
-                  return { transcript: newTranscript };
-                }
-              });
-            },
+                    console.log("NTA1 ", newTranscript);
+
+                    return { transcript: newTranscript };
+                  } else {
+                    if (text) {
+                      newTranscript.push({
+                        id: crypto.randomUUID(),
+                        sender,
+                        text,
+                        isPartial,
+                      });
+                    console.log("NTA2 ", newTranscript);
+
+                    }
+
+                    return { transcript: newTranscript };
+                  }
+                });
+              },
 
             });
 
@@ -104,10 +136,26 @@ export const useAudioStore = create<AudioStore>()(
               LiveManagerInstance: manager,
             });
           }
+          const selectedLang = AVAILABLE_LANGUAGES.find(
+        (l) => l.code === state.selectedLanguage,
+      );
+      // create session
+      manager.StartSession({
+        selected_assistant_voice:
+          state.selectedAssistantVoice,
+        selected_launguage_code:
+          selectedLang?.code || "en-US",
+        selected_launguage_name:
+          selectedLang?.name || "English",
+        selected_launguage_region:
+          selectedLang?.region || "US",
+        description: state.selectedTopic,
+        selected_topic: state.selectedTopic,
+        selected_proefficent_level:
+          state.selectedProficiencyLevel,
+      });
 
-           manager.StartSession();
 
-          
         } catch (error) {
           console.error(error);
 
@@ -117,14 +165,14 @@ export const useAudioStore = create<AudioStore>()(
         }
       },
 
-      disconnect : async () => {
+      disconnect: async () => {
         const state = get();
 
-        if(state.LiveManagerInstance){
+        if (state.LiveManagerInstance) {
           state.LiveManagerInstance.Disconnect();
         }
-        set({LiveManagerInstance : null})
-        set({connectionState : ConnectionState.DISCONNECTED })
+        set({ LiveManagerInstance: null })
+        set({ connectionState: ConnectionState.DISCONNECTED })
       }
 
     }),
