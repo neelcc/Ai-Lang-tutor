@@ -26,13 +26,15 @@ export class LiveAudioManager {
   private isMuted: boolean = false;
   private inputTranscription: string = "";
   private outputTranscription: string = "";
+  private token : string ;
 
-  constructor(callbacks: LiveManagerCallbacks) {
+  constructor(callbacks: LiveManagerCallbacks,token : string ) {
     this.ai = new GoogleGenAI({
-      apiKey: process.env.NEXT_PUBLIC_API_KEY,
+      apiKey: token,
+      apiVersion : "v1alpha"
     });
-    this.callbacks = callbacks;
-
+    this.callbacks = callbacks; 
+    this.token = token;
   }
 
   SetMute(isMutedVar: boolean) {
@@ -48,10 +50,11 @@ export class LiveAudioManager {
   }
 
   async StartSession(connectConfig : ConnectConfig) {
-
+    
     try {
       this.callbacks.onStateChange(ConnectionState.CONNECTING)
-      const config : LiveConnectConfig = {
+
+        const config : LiveConnectConfig = {
         responseModalities: [Modality.AUDIO], 
         speechConfig : {
           languageCode : connectConfig.selected_launguage_code,

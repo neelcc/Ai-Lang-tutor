@@ -59,6 +59,17 @@ export const useAudioStore = create<AudioStore>()(
       connect: async () => {
         const state = get();
 
+        const response = await fetch("/api/token/")
+        console.log(response);
+        
+        if(!response.ok){
+          set({error : "Failed to generate token"})
+        }
+
+        const { token } = await response.json();
+
+
+
         if (
           state.connectionState === ConnectionState.CONNECTING ||
           state.connectionState === ConnectionState.CONNECTED
@@ -129,8 +140,8 @@ export const useAudioStore = create<AudioStore>()(
                   }
                 });
               },
-
-            });
+              
+            }, token );
 
             set({
               LiveManagerInstance: manager,
