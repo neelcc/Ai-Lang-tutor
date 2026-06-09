@@ -66,8 +66,12 @@ export const useAudioStore = create<AudioStore>()(
           set({error : "Failed to generate token"})
         }
 
+        console.log("ss",process.env.NEXT_PUBLIC_GEMINI_API_KEY);
+        
         const { token } = await response.json();
 
+        console.log("tojen",token);
+        
 
 
         if (
@@ -141,7 +145,7 @@ export const useAudioStore = create<AudioStore>()(
                 });
               },
               
-            }, token );
+            } , token );
 
             set({
               LiveManagerInstance: manager,
