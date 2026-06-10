@@ -2,6 +2,7 @@ import { base64ToUint8Array, createPCMBlob, decodeAudioData } from "@/lib/audioU
 import {  INPUT_SAMPLE_RATE, MODEL, OUTPUT_SAMPLE_RATE } from "@/lib/constants";
 import { ConnectConfig, ConnectionState, LiveManagerCallbacks } from "@/types";
 import {
+  AuthToken,
   EndSensitivity,
   GoogleGenAI,
   LiveConnectConfig,
@@ -26,11 +27,12 @@ export class LiveAudioManager {
   private isMuted: boolean = false;
   private inputTranscription: string = "";
   private outputTranscription: string = "";
-  private token : string ;
+  private token : AuthToken;
 
-  constructor(callbacks: LiveManagerCallbacks,token : string ) {
+  constructor(callbacks: LiveManagerCallbacks,token : AuthToken ) {
+    
     this.ai = new GoogleGenAI({
-      apiKey: token,
+      apiKey: token.name,
       apiVersion : "v1alpha"
     });
     this.callbacks = callbacks; 
@@ -160,8 +162,6 @@ export class LiveAudioManager {
   async HandleMessage(message: LiveServerMessage) {
 
     const ServerContent = message.serverContent;
-    // console.log("",ServerContent?.inputTranscription);
-    console.log("Output Server",ServerContent);
     
 
     if (ServerContent?.interrupted) {
@@ -188,7 +188,6 @@ export class LiveAudioManager {
           false,
         );
         
-        console.log("IsFInished : ",ServerContent.inputTranscription?.finished);
         
         this.inputTranscription = "";
       }
@@ -199,7 +198,6 @@ export class LiveAudioManager {
           this.outputTranscription,
           false,
         );
-        console.log("IsFInished : ",ServerContent.outputTranscription?.finished);
         this.outputTranscription = "";
       }
     }

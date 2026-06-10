@@ -60,17 +60,14 @@ export const useAudioStore = create<AudioStore>()(
         const state = get();
 
         const response = await fetch("/api/token/")
-        console.log(response);
         
         if(!response.ok){
           set({error : "Failed to generate token"})
         }
 
-        console.log("ss",process.env.NEXT_PUBLIC_GEMINI_API_KEY);
         
         const { token } = await response.json();
 
-        console.log("tojen",token);
         
 
 
@@ -106,7 +103,6 @@ export const useAudioStore = create<AudioStore>()(
               onTranscript: (sender, text, isPartial) => {
                 return set((state) => {
                   const newTranscript = [...state.transcript];
-                  console.log("NTB ", newTranscript);
 
                   const existingIndex =
                     newTranscript.findLastIndex((item) => {
@@ -115,7 +111,6 @@ export const useAudioStore = create<AudioStore>()(
                         item.isPartial
                       );
                     });
-                  console.log("ExistingIndex: ", existingIndex);
 
                   // partial message exists
                   if (existingIndex !== -1) {
@@ -125,7 +120,6 @@ export const useAudioStore = create<AudioStore>()(
                       isPartial,
                     };
 
-                    console.log("NTA1 ", newTranscript);
 
                     return { transcript: newTranscript };
                   } else {
@@ -136,7 +130,6 @@ export const useAudioStore = create<AudioStore>()(
                         text,
                         isPartial,
                       });
-                    console.log("NTA2 ", newTranscript);
 
                     }
 
