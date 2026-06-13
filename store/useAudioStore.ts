@@ -1,7 +1,7 @@
 import { ConnectionState, TranscriptItem } from "@/types";
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
-import { LiveAudioManager } from "@/services/LiveAudioManager";
+import { LiveAudioManager } from "@/services/LiveAudioManagers";
 import { AVAILABLE_LANGUAGES, AVAILABLE_PROFICIENCY_LEVELS, AVAILABLE_TOPICS, AVAILABLE_VOICES } from "@/lib/constants";
 
 type AudioStore = {
@@ -59,24 +59,21 @@ export const useAudioStore = create<AudioStore>()(
       connect: async () => {
         const state = get();
 
-        const response = await fetch("/api/token/")
-        
-        if(!response.ok){
-          set({error : "Failed to generate token"})
-        }
-
-        
-        const { token } = await response.json();
-
-        
-
-
-        if (
+         if (
           state.connectionState === ConnectionState.CONNECTING ||
           state.connectionState === ConnectionState.CONNECTED
         ) {
           return;
         }
+
+        const response = await fetch("/api/token/")
+        
+        if(!response.ok){
+          set({error : "Failed to generate token"})
+          return;
+        }
+
+        const { token } = await response.json();
 
         set({
           error: null,
@@ -148,7 +145,7 @@ export const useAudioStore = create<AudioStore>()(
         (l) => l.code === state.selectedLanguage,
       );
       // create session
-      manager.StartSession({
+     await manager.initialize({
         selected_assistant_voice:
           state.selectedAssistantVoice,
         selected_launguage_code:
@@ -177,10 +174,9 @@ export const useAudioStore = create<AudioStore>()(
         const state = get();
 
         if (state.LiveManagerInstance) {
-          state.LiveManagerInstance.Disconnect();
+          state.LiveManagerInstance.destroy();
         }
-        set({ LiveManagerInstance: null })
-        set({ connectionState: ConnectionState.DISCONNECTED })
+      set({ LiveManagerInstance: null, connectionState: ConnectionState.DISCONNECTED })
       }
 
     }),

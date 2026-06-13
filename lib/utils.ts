@@ -14,3 +14,4 @@ export function cleanText(text: string) {
     .replace(/\s+/g, " ")
     .trim();
 }
+

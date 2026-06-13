@@ -29,6 +29,11 @@ export interface LiveManagerCallbacks {
   onError: (error: string) => void;
 }
 
+export interface pcmBlob  {
+    data: string;
+    mimeType: string;
+}
+
 export interface ConnectConfig {
   selected_topic: string;
   description: string;

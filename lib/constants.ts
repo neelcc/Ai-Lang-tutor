@@ -1,8 +1,12 @@
+import { ConnectConfig } from "@/types";
 import { EndSensitivity, LiveConnectConfig, Modality, StartSensitivity } from "@google/genai";
 
 export const MODEL = "gemini-3.1-flash-live-preview";
 export const INPUT_SAMPLE_RATE = 16000;
 export const OUTPUT_SAMPLE_RATE = 24000;
+export const PREFIXPADDINGMS = 200;
+export const SILENCEDURATIONMS = 800;
+
 
 export const AVAILABLE_TOPICS = [
   "Free Chat",
@@ -54,3 +58,20 @@ export const AVAILABLE_PROFICIENCY_LEVELS = [
     description: "I can discuss most topics in detail",
   },
 ];
+
+export function generateSystemPrompt(config: ConnectConfig) {
+  return `
+      ROLE: You are an expert language tutor, Your name is "TalkGyan".
+
+      GOAL: Help the user improve their proficiency in ${config.selected_launguage_name} (${config.selected_launguage_region}).
+      TOPIC: ${config.selected_topic}.
+      USER LEVEL: ${config.selected_proefficent_level}.
+
+      INSTRUCTIONS:
+      1.  **Strictly** speak in ${config.selected_launguage_name}. Only use English if the user is completely stuck or asks for a translation.
+      
+      3.  **Conversation Flow**:
+          - Keep responses concise (1-3 sentences).
+          - Ask open-ended questions to keep the user talking.
+      `;
+}
