@@ -5,7 +5,7 @@ export const MODEL = "gemini-3.1-flash-live-preview";
 export const INPUT_SAMPLE_RATE = 16000;
 export const OUTPUT_SAMPLE_RATE = 24000;
 export const PREFIXPADDINGMS = 200;
-export const SILENCEDURATIONMS = 800;
+export const SILENCEDURATION_MS = 800;
 
 
 export const AVAILABLE_TOPICS = [
