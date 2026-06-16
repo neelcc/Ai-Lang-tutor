@@ -1,5 +1,5 @@
   import { base64ToUint8Array, createPCMBlob, decodeAudioData } from "@/lib/audioUtils";
-  import {  INPUT_SAMPLE_RATE, MODEL, OUTPUT_SAMPLE_RATE, PREFIXPADDINGMS, SILENCEDURATIONMS } from "@/lib/constants";
+  import {  INPUT_SAMPLE_RATE, MODEL, OUTPUT_SAMPLE_RATE, PREFIXPADDINGMS, SILENCEDURATION_MS } from "@/lib/constants";
   import { ConnectConfig, ConnectionState, LiveManagerCallbacks } from "@/types";
   import {
     AuthToken,
@@ -60,7 +60,7 @@
               startOfSpeechSensitivity: StartSensitivity.START_SENSITIVITY_LOW, // less trigger-happy
               endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_HIGH, // detect silence faster
               prefixPaddingMs: PREFIXPADDINGMS,
-              silenceDurationMs: SILENCEDURATIONMS, // declare end after 800ms of "silence"
+              silenceDurationMs: SILENCEDURATION_MS, // declare end after 800ms of "silence"
             },
           },
         }
