@@ -69,6 +69,28 @@ export class LiveSession {
                 },
                 config: config,
             });
+            this.ActiveSession = await this.ai.live.connect({
+                model: MODEL,
+                callbacks: {
+                    onopen: () => {
+                        console.log("Opened");
+                        this.callbacks.onStateChange(ConnectionState.CONNECTED)
+
+                    },
+                    onmessage: (message) => {
+                        callbacks.onMessage(message)
+                    },
+                    onerror: (e) => {
+                        console.debug("Error:", e.message);
+                        this.callbacks.onStateChange(ConnectionState.ERROR)
+                        this.callbacks.onError("Could not connect")
+                    },
+                    onclose: function (e) {
+                        console.log("Close:", e.reason);
+                    },
+                },
+                config: config,
+            });
 
 
         } catch (error) {
